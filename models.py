@@ -49,3 +49,21 @@ class ProductoRespuesta(BaseModel):
 # y añadir validaciones más adelante si fuera necesario.
 class ActualizarStock(BaseModel):
     cantidad: int = Field(..., description="Positivo para añadir stock, negativo para restar")
+
+class UsuarioRegistro(BaseModel):
+    nombre: str = Field(..., min_length=2, max_length=50)
+    email: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=6)
+
+class UsuarioRespuesta(BaseModel):
+    id: int
+    nombre: str
+    email: str
+    es_admin: bool
+
+    class Config:
+        from_attributes = True  # permite convertir objetos SQLAlchemy a Pydantic
+
+class TokenRespuesta(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

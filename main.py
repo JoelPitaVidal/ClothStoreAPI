@@ -1,8 +1,10 @@
 # main.py
+import app
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import productos, categorias
+from routers import productos, categorias, auth
 
+app.include_router(auth.router)
 app = FastAPI(title="Tienda API", version="1.0")
 
 app.add_middleware(

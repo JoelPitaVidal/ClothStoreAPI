@@ -1,7 +1,17 @@
 # db_models.py
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from .database import Base
+
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    email       = Column(String, unique=True, index=True, nullable=False)
+    nombre      = Column(String, nullable=False)
+    password    = Column(String, nullable=False)  # siempre hasheado, nunca texto plano
+    es_admin    = Column(Boolean, default=False)  # controla acceso a rutas protegidas
 
 class Categoria(Base):
     __tablename__ = "categorias"
