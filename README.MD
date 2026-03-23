@@ -110,7 +110,6 @@ El CORS está preconfigurado para permitir peticiones desde el servidor de desar
 allow_origins=["http://localhost:5173"]
 ```
 
-Si tu aplicación Vue corre en un puerto diferente, actualiza este valor en `main.py`.
 
 ---
 
@@ -145,7 +144,7 @@ Si tu aplicación Vue corre en un puerto diferente, actualiza este valor en `mai
 
 ## 🤝 Integración con Vue
 
-Desde tu aplicación Vue puedes consumir la API así:
+Conexion la API así:
 
 ```javascript
 // Ejemplo: obtener todos los productos disponibles de la categoría 1
@@ -153,7 +152,6 @@ const response = await fetch('http://127.0.0.1:8000/productos?categoria_id=1&sol
 const productos = await response.json()
 ```
 
-Al pasar a producción, reemplaza la URL base por la de tu API desplegada y actualiza la lista `allow_origins` del CORS en `main.py`.
 
 ---
 
