@@ -1,0 +1,22 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Base de datos
+*.db
+
+# Variables de entorno
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# PyCharm
+.idea/
+
+# Alembic (no ignorar versions/, solo el db temporal)
+alembic/versions/*.pyc

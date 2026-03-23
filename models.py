@@ -31,6 +31,8 @@ class ProductoCrear(BaseModel):
     precio: float = Field(..., gt=0)
     stock: int = Field(default=0, ge=0)  # Si no se envía stock, se asume 0
     categoria_id: int                    # Debe coincidir con el id de una categoría existente
+    imagen_url: Optional[str] = None  # ← nuevo
+
 
 # Modelo para DEVOLVER un producto en la respuesta.
 # Separarlo de ProductoCrear permite controlar exactamente qué campos expone la API.
@@ -39,6 +41,7 @@ class ProductoRespuesta(BaseModel):
     nombre: str
     precio: float
     stock: int
+    imagen_url: Optional[str] = None  # ← nuevo
     categoria_id: int
 
 # Modelo específico para actualizar solo el stock de un producto.

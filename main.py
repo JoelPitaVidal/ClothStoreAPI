@@ -1,12 +1,7 @@
 # main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database.database import engine, Base
 from routers import productos, categorias
-
-# Crea todas las tablas al arrancar si no existen todavía.
-# Cuando añadas Alembic más adelante, esto se sustituye por migraciones.
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Tienda API", version="1.0")
 

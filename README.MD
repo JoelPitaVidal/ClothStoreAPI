@@ -1,6 +1,6 @@
 # 🛍️ Tienda API
 
-API RESTful para una tienda de ropa, construida con **FastAPI** y diseñada para integrarse con un frontend en **Vue.js**. El proyecto está estructurado para crecer — preparado para conectar una base de datos y evolucionar hacia un backend completo en producción.
+API RESTful para una tienda de ropa, construida con **FastAPI** y diseñada para integrarse con un frontend en **Vue.js**. Incluye base de datos persistente con SQLite, migraciones con Alembic y estructura modular lista para crecer.
 
 ---
 
@@ -9,6 +9,9 @@ API RESTful para una tienda de ropa, construida con **FastAPI** y diseñada para
 - **Python 3.10+**
 - **FastAPI** — framework moderno y rápido para construir APIs
 - **Pydantic v2** — validación y serialización de datos
+- **SQLAlchemy** — ORM para gestión de la base de datos
+- **SQLite** — base de datos local, sin servidor externo
+- **Alembic** — migraciones del esquema de base de datos
 - **Uvicorn** — servidor ASGI
 - **CORS** configurado para Vue + Vite (`localhost:5173`)
 
@@ -18,12 +21,21 @@ API RESTful para una tienda de ropa, construida con **FastAPI** y diseñada para
 
 ```
 tienda-api/
-├── main.py               # Punto de entrada, configuración CORS y registro de routers
-├── models.py             # Esquemas Pydantic (modelos de entrada y respuesta)
+├── main.py                   # Punto de entrada, CORS y registro de routers
+├── models.py                 # Esquemas Pydantic (modelos de entrada y respuesta)
+├── database/
+│   ├── __init__.py
+│   ├── database.py           # Conexión, engine, sesión y get_db
+│   └── db_models.py          # Modelos SQLAlchemy (tablas de la base de datos)
 ├── routers/
 │   ├── __init__.py
-│   ├── productos.py      # Endpoints de productos
-│   └── categorias.py     # Endpoints de categorías
+│   ├── productos.py          # Endpoints de productos
+│   └── categorias.py         # Endpoints de categorías
+├── alembic/
+│   ├── env.py                # Configuración de migraciones
+│   └── versions/             # Archivos de migración generados
+├── alembic.ini               # Configuración general de Alembic
+├── tienda.db                 # Base de datos SQLite (se genera automáticamente)
 └── requirements.txt
 ```
 
@@ -38,15 +50,46 @@ source venv/bin/activate        # Mac/Linux
 venv\Scripts\activate           # Windows
 
 # 2. Instalar dependencias
-pip install fastapi uvicorn[standard]
+pip install fastapi uvicorn[standard] sqlalchemy alembic
 
-# 3. Arrancar el servidor de desarrollo
+# 3. Aplicar migraciones (crea las tablas en la base de datos)
+alembic upgrade head
+
+# 4. Arrancar el servidor de desarrollo
 uvicorn main:app --reload
 ```
 
 La API estará disponible en `http://127.0.0.1:8000`
 
 Documentación interactiva (Swagger UI) en `http://127.0.0.1:8000/docs`
+
+---
+
+## 🗃️ Base de datos
+
+La API usa **SQLite** como base de datos. El archivo `tienda.db` se genera automáticamente en la raíz del proyecto al aplicar las migraciones.
+
+Las migraciones se gestionan con **Alembic**. Cada vez que se modifica el esquema (añadir columnas, cambiar tipos, etc.) el flujo es:
+
+```bash
+# 1. Modificar el modelo en database/db_models.py
+# 2. Generar la migración automáticamente
+alembic revision --autogenerate -m "descripcion del cambio"
+
+# 3. Revisar el archivo generado en alembic/versions/
+# 4. Aplicar la migración
+alembic upgrade head
+```
+
+Otros comandos útiles:
+
+```bash
+alembic history          # Ver el historial de migraciones
+alembic downgrade -1     # Revertir la última migración
+alembic current          # Ver en qué migración está la base de datos ahora
+```
+
+> **Nota:** el archivo `tienda.db` no debe subirse a Git. Añádelo a `.gitignore`.
 
 ---
 
@@ -110,6 +153,7 @@ El CORS está preconfigurado para permitir peticiones desde el servidor de desar
 allow_origins=["http://localhost:5173"]
 ```
 
+Si tu aplicación Vue corre en un puerto diferente, actualiza este valor en `main.py`. Al pasar a producción, reemplaza `localhost:5173` por la URL de tu frontend desplegado.
 
 ---
 
@@ -131,27 +175,34 @@ allow_origins=["http://localhost:5173"]
 
 ---
 
+## 🤝 Integración con Vue
+
+Desde tu aplicación Vue puedes consumir la API así:
+
+```javascript
+// Obtener todos los productos disponibles de la categoría 1
+const response = await fetch('http://127.0.0.1:8000/productos?categoria_id=1&solo_disponibles=true')
+const productos = await response.json()
+
+// Crear un producto nuevo
+const response = await fetch('http://127.0.0.1:8000/productos', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ nombre: 'Camiseta', precio: 19.99, stock: 50, categoria_id: 1 })
+})
+const nuevo = await response.json()
+```
+
+---
+
 ## 🔮 Próximos pasos
 
-- [ ] Conectar base de datos SQLite con SQLAlchemy
-- [ ] Añadir migraciones con Alembic
+- [x] Conectar base de datos SQLite con SQLAlchemy
+- [x] Añadir migraciones con Alembic
 - [ ] Añadir campo de URL de imagen en productos
 - [ ] Autenticación de usuarios con JWT
 - [ ] Rutas protegidas solo para administradores
 - [ ] Despliegue en un proveedor cloud (Railway, Render, etc.)
-
----
-
-## 🤝 Integración con Vue
-
-Conexion la API así:
-
-```javascript
-// Ejemplo: obtener todos los productos disponibles de la categoría 1
-const response = await fetch('http://127.0.0.1:8000/productos?categoria_id=1&solo_disponibles=true')
-const productos = await response.json()
-```
-
 
 ---
 

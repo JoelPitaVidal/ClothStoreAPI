@@ -21,7 +21,7 @@ class Producto(Base):
     nombre       = Column(String, nullable=False)
     precio       = Column(Float, nullable=False)
     stock        = Column(Integer, default=0)
-
+    imagen_url = Column(String, nullable=True)
     # Clave foránea — vincula cada producto con una categoría.
     categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=False)
 

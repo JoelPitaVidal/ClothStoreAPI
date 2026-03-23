@@ -1,10 +1,16 @@
 # database.py
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
+load_dotenv()  # Carga las variables del archivo .env
+
+
 # SQLite guarda en un archivo local — no necesita servidor externo.
 # El archivo se crea automáticamente en la raíz del proyecto.
-DATABASE_URL = "sqlite:///./tienda.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tienda.db")
+
 
 engine = create_engine(
     DATABASE_URL,
