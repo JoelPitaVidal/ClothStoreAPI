@@ -1,67 +1,69 @@
 # 🛍️ Tienda API
 
-A RESTful API for a clothing store, built with **FastAPI** and designed to integrate seamlessly with a **Vue.js** frontend. This project is structured for scalability — ready to plug in a database and grow into a full production backend.
+API RESTful para una tienda de ropa, construida con **FastAPI** y diseñada para integrarse con un frontend en **Vue.js**. El proyecto está estructurado para crecer — preparado para conectar una base de datos y evolucionar hacia un backend completo en producción.
 
 ---
 
-## 🚀 Tech Stack
+## 🚀 Tecnologías
 
 - **Python 3.10+**
-- **FastAPI** — modern, fast web framework for building APIs
-- **Pydantic v2** — data validation and serialization
-- **Uvicorn** — ASGI server
-- **CORS** configured for Vue + Vite (`localhost:5173`)
+- **FastAPI** — framework moderno y rápido para construir APIs
+- **Pydantic v2** — validación y serialización de datos
+- **Uvicorn** — servidor ASGI
+- **CORS** configurado para Vue + Vite (`localhost:5173`)
 
 ---
 
-## 📁 Project Structure
+## 📁 Estructura del proyecto
 
 ```
 tienda-api/
-├── main.py               # App entry point, CORS config, router registration
-├── models.py             # Pydantic schemas (request & response models)
+├── main.py               # Punto de entrada, configuración CORS y registro de routers
+├── models.py             # Esquemas Pydantic (modelos de entrada y respuesta)
 ├── routers/
 │   ├── __init__.py
-│   ├── productos.py      # Product endpoints
-│   └── categorias.py     # Category endpoints
+│   ├── productos.py      # Endpoints de productos
+│   └── categorias.py     # Endpoints de categorías
 └── requirements.txt
 ```
 
 ---
 
-## ⚙️ Setup
+## ⚙️ Instalación y arranque
 
 ```bash
-# 1. Create and activate virtual environment
+# 1. Crear y activar el entorno virtual
 python -m venv venv
 source venv/bin/activate        # Mac/Linux
 venv\Scripts\activate           # Windows
 
-# 2. Install dependencies
+# 2. Instalar dependencias
 pip install fastapi uvicorn[standard]
 
-# 3. Run the development server
+# 3. Arrancar el servidor de desarrollo
 uvicorn main:app --reload
 ```
 
-The API will be available at `http://127.0.0.1:8000`
+La API estará disponible en `http://127.0.0.1:8000`
 
-Interactive docs (Swagger UI) at `http://127.0.0.1:8000/docs`
+Documentación interactiva (Swagger UI) en `http://127.0.0.1:8000/docs`
 
 ---
 
 ## 📦 Endpoints
 
-### Products `/productos`
+### Productos `/productos`
 
-| Method | Endpoint | Description |
+| Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| `GET` | `/productos` | List all products. Supports `?categoria_id=` and `?solo_disponibles=true` filters |
-| `GET` | `/productos/{id}` | Get a single product by ID |
-| `POST` | `/productos` | Create a new product |
-| `PATCH` | `/productos/{id}/stock` | Update stock (positive to add, negative to subtract) |
+| `GET` | `/productos` | Lista todos los productos. Admite filtros `?categoria_id=` y `?solo_disponibles=true` |
+| `GET` | `/productos/{id}` | Obtiene un producto concreto por su ID |
+| `POST` | `/productos` | Crea un producto nuevo |
+| `PUT` | `/productos/{id}` | Reemplaza un producto completo |
+| `PATCH` | `/productos/{id}/stock` | Actualiza el stock (positivo para añadir, negativo para restar) |
+| `DELETE` | `/productos/{id}` | Elimina un producto |
 
-#### POST /productos — Request body
+#### POST /productos — Cuerpo de la petición
 ```json
 {
   "nombre": "Camiseta",
@@ -71,7 +73,7 @@ Interactive docs (Swagger UI) at `http://127.0.0.1:8000/docs`
 }
 ```
 
-#### PATCH /productos/{id}/stock — Request body
+#### PATCH /productos/{id}/stock — Cuerpo de la petición
 ```json
 {
   "cantidad": 10
@@ -80,15 +82,17 @@ Interactive docs (Swagger UI) at `http://127.0.0.1:8000/docs`
 
 ---
 
-### Categories `/categorias`
+### Categorías `/categorias`
 
-| Method | Endpoint | Description |
+| Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| `GET` | `/categorias` | List all categories |
-| `GET` | `/categorias/{id}` | Get a single category by ID |
-| `POST` | `/categorias` | Create a new category |
+| `GET` | `/categorias` | Lista todas las categorías |
+| `GET` | `/categorias/{id}` | Obtiene una categoría concreta por su ID |
+| `POST` | `/categorias` | Crea una categoría nueva |
+| `PUT` | `/categorias/{id}` | Reemplaza una categoría completa |
+| `DELETE` | `/categorias/{id}` | Elimina una categoría |
 
-#### POST /categorias — Request body
+#### POST /categorias — Cuerpo de la petición
 ```json
 {
   "nombre": "Ropa",
@@ -100,59 +104,59 @@ Interactive docs (Swagger UI) at `http://127.0.0.1:8000/docs`
 
 ## 🔒 CORS
 
-CORS is pre-configured to allow requests from the Vue + Vite dev server:
+El CORS está preconfigurado para permitir peticiones desde el servidor de desarrollo de Vue + Vite:
 
 ```python
 allow_origins=["http://localhost:5173"]
 ```
 
-If your Vue app runs on a different port, update this value in `main.py`.
+Si tu aplicación Vue corre en un puerto diferente, actualiza este valor en `main.py`.
 
 ---
 
-## 🗂️ Data Models
+## 🗂️ Modelos de datos
 
 ### ProductoCrear
-| Field | Type | Constraints |
-|-------|------|-------------|
-| `nombre` | `str` | min 2, max 100 chars |
-| `precio` | `float` | must be > 0 |
-| `stock` | `int` | must be ≥ 0, defaults to 0 |
-| `categoria_id` | `int` | must match an existing category |
+| Campo | Tipo | Restricciones |
+|-------|------|---------------|
+| `nombre` | `str` | mínimo 2, máximo 100 caracteres |
+| `precio` | `float` | debe ser > 0 |
+| `stock` | `int` | debe ser ≥ 0, por defecto 0 |
+| `categoria_id` | `int` | debe corresponder a una categoría existente |
 
 ### CategoriaCrear
-| Field | Type | Constraints |
-|-------|------|-------------|
-| `nombre` | `str` | min 2, max 50 chars |
-| `descripcion` | `str` | optional |
+| Campo | Tipo | Restricciones |
+|-------|------|---------------|
+| `nombre` | `str` | mínimo 2, máximo 50 caracteres |
+| `descripcion` | `str` | opcional |
 
 ---
 
-## 🔮 Roadmap
+## 🔮 Próximos pasos
 
-- [ ] Connect SQLite database with SQLAlchemy
-- [ ] Add Alembic migrations
-- [ ] Add product image URL field
-- [ ] User authentication with JWT
-- [ ] Admin-only routes for POST/PATCH endpoints
-- [ ] Deploy to a cloud provider (Railway, Render, etc.)
+- [ ] Conectar base de datos SQLite con SQLAlchemy
+- [ ] Añadir migraciones con Alembic
+- [ ] Añadir campo de URL de imagen en productos
+- [ ] Autenticación de usuarios con JWT
+- [ ] Rutas protegidas solo para administradores
+- [ ] Despliegue en un proveedor cloud (Railway, Render, etc.)
 
 ---
 
-## 🤝 Vue Integration
+## 🤝 Integración con Vue
 
-From your Vue app, you can call the API like this:
+Desde tu aplicación Vue puedes consumir la API así:
 
 ```javascript
-// Example: fetch all available products in category 1
+// Ejemplo: obtener todos los productos disponibles de la categoría 1
 const response = await fetch('http://127.0.0.1:8000/productos?categoria_id=1&solo_disponibles=true')
 const productos = await response.json()
 ```
 
-When moving to production, replace the base URL with your deployed API URL and update the CORS `allow_origins` list accordingly.
+Al pasar a producción, reemplaza la URL base por la de tu API desplegada y actualiza la lista `allow_origins` del CORS en `main.py`.
 
 ---
 
-## 📄 License
+## 📄 Licencia
 
 MIT
