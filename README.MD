@@ -12,6 +12,7 @@ API RESTful para una tienda de ropa, construida con **FastAPI** y diseñada para
 - **SQLAlchemy** — ORM para gestión de la base de datos
 - **SQLite** — base de datos local, sin servidor externo
 - **Alembic** — migraciones del esquema de base de datos
+- **python-dotenv** — gestión de variables de entorno
 - **Uvicorn** — servidor ASGI
 - **CORS** configurado para Vue + Vite (`localhost:5173`)
 
@@ -35,33 +36,57 @@ tienda-api/
 │   ├── env.py                # Configuración de migraciones
 │   └── versions/             # Archivos de migración generados
 ├── alembic.ini               # Configuración general de Alembic
-├── tienda.db                 # Base de datos SQLite (se genera automáticamente)
+├── .env.example              # Plantilla de variables de entorno
+├── .gitignore
 └── requirements.txt
 ```
+
+> `tienda.db` y `.env` se generan localmente y no se incluyen en el repositorio.
 
 ---
 
 ## ⚙️ Instalación y arranque
 
 ```bash
-# 1. Crear y activar el entorno virtual
+# 1. Clonar el repositorio
+git clone <url-del-repo>
+cd tienda-api
+
+# 2. Crear y activar el entorno virtual
 python -m venv venv
 source venv/bin/activate        # Mac/Linux
 venv\Scripts\activate           # Windows
 
-# 2. Instalar dependencias
-pip install fastapi uvicorn[standard] sqlalchemy alembic
+# 3. Instalar dependencias
+pip install -r requirements.txt
 
-# 3. Aplicar migraciones (crea las tablas en la base de datos)
+# 4. Crear el archivo de variables de entorno
+cp .env.example .env
+
+# 5. Aplicar migraciones (crea las tablas en la base de datos)
 alembic upgrade head
 
-# 4. Arrancar el servidor de desarrollo
+# 6. Arrancar el servidor de desarrollo
 uvicorn main:app --reload
 ```
 
 La API estará disponible en `http://127.0.0.1:8000`
 
 Documentación interactiva (Swagger UI) en `http://127.0.0.1:8000/docs`
+
+---
+
+## 🔧 Variables de entorno
+
+Copia `.env.example` a `.env` y ajusta los valores si es necesario:
+
+```env
+DATABASE_URL=sqlite:///./tienda.db
+APP_TITLE=Tienda API
+APP_VERSION=1.0
+```
+
+> El archivo `.env` nunca se sube al repositorio. Solo `.env.example` está versionado.
 
 ---
 
@@ -89,8 +114,6 @@ alembic downgrade -1     # Revertir la última migración
 alembic current          # Ver en qué migración está la base de datos ahora
 ```
 
-> **Nota:** el archivo `tienda.db` no debe subirse a Git. Añádelo a `.gitignore`.
-
 ---
 
 ## 📦 Endpoints
@@ -112,6 +135,7 @@ alembic current          # Ver en qué migración está la base de datos ahora
   "nombre": "Camiseta",
   "precio": 19.99,
   "stock": 50,
+  "imagen_url": "https://ejemplo.com/camiseta.jpg",
   "categoria_id": 1
 }
 ```
@@ -165,6 +189,7 @@ Si tu aplicación Vue corre en un puerto diferente, actualiza este valor en `mai
 | `nombre` | `str` | mínimo 2, máximo 100 caracteres |
 | `precio` | `float` | debe ser > 0 |
 | `stock` | `int` | debe ser ≥ 0, por defecto 0 |
+| `imagen_url` | `str` | opcional |
 | `categoria_id` | `int` | debe corresponder a una categoría existente |
 
 ### CategoriaCrear
@@ -188,7 +213,13 @@ const productos = await response.json()
 const response = await fetch('http://127.0.0.1:8000/productos', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ nombre: 'Camiseta', precio: 19.99, stock: 50, categoria_id: 1 })
+  body: JSON.stringify({
+    nombre: 'Camiseta',
+    precio: 19.99,
+    stock: 50,
+    imagen_url: 'https://ejemplo.com/camiseta.jpg',
+    categoria_id: 1
+  })
 })
 const nuevo = await response.json()
 ```
@@ -199,7 +230,9 @@ const nuevo = await response.json()
 
 - [x] Conectar base de datos SQLite con SQLAlchemy
 - [x] Añadir migraciones con Alembic
-- [ ] Añadir campo de URL de imagen en productos
+- [x] Añadir campo `imagen_url` en productos
+- [x] Variables de entorno con `.env`
+- [x] Repositorio limpio en GitHub
 - [ ] Autenticación de usuarios con JWT
 - [ ] Rutas protegidas solo para administradores
 - [ ] Despliegue en un proveedor cloud (Railway, Render, etc.)
