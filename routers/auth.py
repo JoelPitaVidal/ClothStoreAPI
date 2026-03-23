@@ -5,8 +5,7 @@ from sqlalchemy.orm import Session
 from database.database import get_db
 from database.db_models import Usuario
 from models import UsuarioRegistro, UsuarioRespuesta, TokenRespuesta
-from auth.security import hashear_password, verificar_password, crear_token
-
+from auth.security import hashear_password, verificar_password, crear_token, get_usuario_actual
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
 
@@ -41,6 +40,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 @router.get("/me", response_model=UsuarioRespuesta)
-def mi_perfil(usuario = Depends(get_usuario_actual_from_import)):
+def mi_perfil(usuario = Depends(get_usuario_actual)):
     # Endpoint útil para que Vue compruebe si el token sigue siendo válido
     return usuario

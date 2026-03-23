@@ -2,8 +2,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
+from auth.security import get_admin_actual
 from database.database import get_db
-from database.db_models import Producto
+from database.db_models import Producto, Usuario
 from models import ProductoCrear, ProductoRespuesta, ActualizarStock
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
@@ -13,7 +14,8 @@ router = APIRouter(prefix="/productos", tags=["Productos"])
 def listar_productos(
     categoria_id: Optional[int] = None,
     solo_disponibles: bool = False,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    # esta es la línea que da la protección de usuário =>    _: Usuario = Depends(get_admin_actual)
 ):
     query = db.query(Producto)
     if categoria_id:
