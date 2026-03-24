@@ -55,15 +55,53 @@ class UsuarioRegistro(BaseModel):
     email: str = Field(..., min_length=5)
     password: str = Field(..., min_length=6)
 
+from pydantic import BaseModel, Field, ConfigDict
+
 class UsuarioRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     nombre: str
     email: str
     es_admin: bool
 
-    class Config:
-        from_attributes = True  # permite convertir objetos SQLAlchemy a Pydantic
-
 class TokenRespuesta(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class ProductosPaginados(BaseModel):
+    total: int
+    skip: int
+    limit: int
+    resultados: list[ProductoRespuesta]
+
+class CarritoItemRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:          int
+    producto_id: int
+    cantidad:    int
+    producto:    ProductoRespuesta  # devuelve el producto completo, no solo el id
+
+class CarritoRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:         int
+    usuario_id: int
+    items:      list[CarritoItemRespuesta]
+    total:      float = 0.0  # se calcula en el endpoint, no se guarda en DB
+
+class AñadirItemCarrito(BaseModel):
+    producto_id: int
+    cantidad:    int = Field(default=1, ge=1)
+
+class ActualizarItemCarrito(BaseModel):
+    cantidad: int = Field(..., ge=1)
+
+class EditarPerfil(BaseModel):
+    nombre: str = Field(..., min_length=2, max_length=50)
+    email: str = Field(..., min_length=5)
+
+class CambiarPassword(BaseModel):
+    password_actual: str
+    password_nuevo: str = Field(..., min_length=6)

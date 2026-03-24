@@ -5,7 +5,7 @@ from typing import Optional
 from auth.security import get_admin_actual
 from database.database import get_db
 from database.db_models import Producto, Usuario
-from models import ProductoCrear, ProductoRespuesta, ActualizarStock
+from models import ProductoCrear, ProductoRespuesta, ActualizarStock, ProductosPaginados
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
@@ -75,3 +75,37 @@ def eliminar_producto(producto_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     db.delete(p)
     db.commit()
+
+
+@router.get("/", response_model=ProductosPaginados)
+def listar_productos(
+    categoria_id: Optional[int] = None,
+    solo_disponibles: bool = False,
+    busqueda: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    # Construimos la query base y vamos añadiendo filtros encadenados
+    query = db.query(Producto)
+
+    if categoria_id:
+        query = query.filter(Producto.categoria_id == categoria_id)
+
+    if solo_disponibles:
+        query = query.filter(Producto.stock > 0)
+
+    if busqueda:
+        # ilike es LIKE pero case-insensitive — busca en nombre y descripción
+        query = query.filter(Producto.nombre.ilike(f"%{busqueda}%"))
+
+    total = query.count()  # total antes de paginar, Vue lo necesita para los controles
+
+    productos = query.offset(skip).limit(limit).all()
+
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "resultados": productos
+    }

@@ -37,3 +37,27 @@ class Producto(Base):
 
     # Relación directa — permite acceder a producto.categoria directamente.
     categoria = relationship("Categoria", back_populates="productos")
+
+
+
+class Carrito(Base):
+    __tablename__ = "carritos"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), unique=True, nullable=False)
+
+    # unique=True garantiza que cada usuario tiene máximo un carrito
+    usuario = relationship("Usuario", backref="carrito")
+    items   = relationship("CarritoItem", back_populates="carrito", cascade="all, delete-orphan")
+
+
+class CarritoItem(Base):
+    __tablename__ = "carrito_items"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    carrito_id  = Column(Integer, ForeignKey("carritos.id"), nullable=False)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False)
+    cantidad    = Column(Integer, nullable=False, default=1)
+
+    carrito  = relationship("Carrito", back_populates="items")
+    producto = relationship("Producto")
