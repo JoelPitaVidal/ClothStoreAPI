@@ -11,7 +11,7 @@ cloudinary.config(
     cloud_name=os.getenv("dhxpnabw5"),
     api_key=os.getenv("253514125533611"),
     api_secret=os.getenv("p04pTmoYIRgZS4XRX0MHxf8ybVw"),
-    secure=True  # siempre URLs con https
+    secure=True
 )
 
 def subir_imagen(archivo_bytes: bytes, nombre: str) -> str:
