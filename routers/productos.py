@@ -6,6 +6,8 @@ from auth.security import get_admin_actual
 from database.database import get_db
 from database.db_models import Producto, Usuario
 from models import ProductoCrear, ProductoRespuesta, ActualizarStock, ProductosPaginados
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from services.cloudinary_service import subir_imagen, eliminar_imagen
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
@@ -109,3 +111,32 @@ def listar_productos(
         "limit": limit,
         "resultados": productos
     }
+
+@router.post("/{producto_id}/imagen", response_model=ProductoRespuesta)
+def subir_imagen_producto(
+    producto_id: int,
+    imagen: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _=Depends(get_admin_actual)
+):
+    # Comprueba que el producto existe
+    producto = db.query(Producto).filter(Producto.id == producto_id).first()
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    # Valida que el archivo es una imagen
+    if not imagen.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+    # Si ya tenía imagen, la elimina de Cloudinary antes de subir la nueva
+    if producto.imagen_url:
+        eliminar_imagen(producto.imagen_url)
+
+    # Sube la imagen y guarda la URL en la base de datos
+    archivo_bytes = imagen.file.read()
+    nombre = f"producto_{producto_id}"
+    producto.imagen_url = subir_imagen(archivo_bytes, nombre)
+
+    db.commit()
+    db.refresh(producto)
+    return producto
