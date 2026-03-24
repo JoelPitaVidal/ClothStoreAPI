@@ -105,3 +105,30 @@ class EditarPerfil(BaseModel):
 class CambiarPassword(BaseModel):
     password_actual: str
     password_nuevo: str = Field(..., min_length=6)
+
+
+from datetime import datetime
+
+class PedidoItemRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:          int
+    producto_id: int
+    cantidad:    int
+    precio:      float
+    producto:    ProductoRespuesta
+
+
+class PedidoRespuesta(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:         int
+    usuario_id: int
+    estado:     str
+    total:      float
+    fecha:      datetime
+    items:      list[PedidoItemRespuesta]
+
+
+class ActualizarEstadoPedido(BaseModel):
+    estado: str = Field(..., description="pendiente, pagado, enviado, entregado, cancelado")
