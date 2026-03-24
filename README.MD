@@ -336,7 +336,3 @@ Actualiza este valor en `main.py` al pasar a producción.
 - [ ] Despliegue en un proveedor cloud (Railway, Render, etc.)
 
 ---
-
-## 📄 Licencia
-
-MIT

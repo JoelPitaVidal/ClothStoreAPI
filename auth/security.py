@@ -29,9 +29,18 @@ def verificar_password(password_plano: str, password_hash: str) -> bool:
 
 
 def crear_token(datos: dict) -> str:
+    """
+    Crea un JWT válido incluyendo:
+    - sub: email del usuario
+    - exp: fecha de expiración
+    """
     copia = datos.copy()
+
     expiracion = datetime.utcnow() + timedelta(minutes=MINUTOS_EXPIRACION)
-    copia.update({"exp": expiracion})
+    copia.update({
+        "exp": expiracion
+    })
+
     return jwt.encode(copia, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -42,14 +51,18 @@ def get_usuario_actual(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
+
         if not email:
             raise HTTPException(status_code=401, detail="Token inválido")
+
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
     usuario = db.query(Usuario).filter(Usuario.email == email).first()
+
     if not usuario:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
     return usuario
 
 
