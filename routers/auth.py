@@ -28,7 +28,7 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 @router.post("/registro", response_model=UsuarioRespuesta, status_code=201)
 def registro(datos: UsuarioRegistro, db: Session = Depends(get_db)):
 
-    # 🚫 Bloqueo explícito por seguridad
+    # Bloqueo explícito por seguridad
     if hasattr(datos, "es_admin"):
         raise HTTPException(
             status_code=403,
@@ -51,9 +51,6 @@ def registro(datos: UsuarioRegistro, db: Session = Depends(get_db)):
     return usuario
 
 
-# ---------------------------
-# LOGIN
-# ---------------------------
 @router.post("/login")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -92,7 +89,7 @@ def editar_perfil(
     usuario=Depends(get_usuario_actual)
 ):
 
-    # 🚫 Bloqueo absoluto de cambios a es_admin
+    # Bloqueo absoluto de cambios a es_admin
     if hasattr(datos, "es_admin"):
         raise HTTPException(
             status_code=403,
