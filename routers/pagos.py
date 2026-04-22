@@ -1,8 +1,11 @@
 import os
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
+from fpdf import FPDF
+from pathlib import Path
 
 from database.database import get_db
 from database import db_models as models
@@ -11,15 +14,77 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
-# ⚠️ RECOMENDACIÓN: Mueve estas claves a un archivo .env
+# Configuración de Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
+# Carpeta para guardar facturas
+FACTURAS_DIR = Path("facturas")
+FACTURAS_DIR.mkdir(exist_ok=True)
 
-# Esquema para recibir datos de PayPal desde el Frontend
+
 class PayPalRequest(BaseModel):
     order_id: str
     pedido_id: int
+
+
+# --- UTILIDAD: GENERAR FACTURA PDF ---
+
+def generar_factura_pdf(pedido: models.Pedido):
+    """Genera un archivo PDF para el pedido y devuelve la ruta."""
+    # Usamos latin-1 para evitar errores con caracteres especiales si no cargamos fuentes Unicode
+    pdf = FPDF()
+    pdf.add_page()
+
+    # Estilo Gótico / Elegante (Fondo Negro)
+    pdf.set_fill_color(15, 15, 15)
+    pdf.rect(0, 0, 210, 297, 'F')
+    pdf.set_text_color(224, 213, 232)  # Color e0d5e8
+
+    # Encabezado - Midnight Attire
+    pdf.set_font("Arial", 'B', 24)
+    pdf.cell(0, 20, "MIDNIGHT ATTIRE", ln=True, align='C')
+
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 10, f"Factura ID: #INV-{pedido.id}", ln=True, align='R')
+    pdf.cell(0, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+
+    pdf.ln(10)
+    # Limpiamos posibles caracteres raros del email
+    email_cliente = pedido.usuario.email.encode('latin-1', 'replace').decode('latin-1')
+    pdf.cell(0, 10, f"Cliente: {email_cliente}", ln=True)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
+
+    # Tabla de productos
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(100, 10, "Producto", border=0)
+    pdf.cell(40, 10, "Cant.", border=0)
+    pdf.cell(40, 10, "Precio", border=0, ln=True)
+
+    pdf.set_font("Arial", '', 11)
+    for item in pedido.items:
+        # Reemplazamos caracteres conflictivos en el nombre del producto
+        nombre_prod = item.producto.nombre.encode('latin-1', 'replace').decode('latin-1')
+        pdf.cell(100, 10, f"{nombre_prod}")
+        pdf.cell(40, 10, f"{item.cantidad}")
+        # IMPORTANTE: Usamos 'EUR' en lugar de '€' para evitar el crash de encode
+        pdf.cell(40, 10, f"{item.precio:.2f} EUR", ln=True)
+
+    pdf.ln(10)
+    pdf.set_draw_color(224, 213, 232)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 15, f"TOTAL: {pedido.total:.2f} EUR", ln=True, align='R')
+
+    filename = f"factura_{pedido.id}.pdf"
+    filepath = FACTURAS_DIR / filename
+
+    # Guardamos el archivo
+    pdf.output(str(filepath))
+    return str(filepath)
 
 
 # --- ENDPOINTS DE STRIPE ---
@@ -30,40 +95,26 @@ async def crear_intento_pago(
         db: Session = Depends(get_db),
         usuario_actual: models.Usuario = Depends(get_usuario_actual)
 ):
-    # 1. Buscar el pedido y verificar propiedad
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id,
         models.Pedido.usuario_id == usuario_actual.id
     ).first()
 
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido no encontrado o no autorizado")
-
-    if pedido.estado == models.EstadoPedido.pagado:
-        raise HTTPException(status_code=400, detail="El pedido ya ha sido pagado")
+    if not pedido or pedido.estado == models.EstadoPedido.pagado:
+        raise HTTPException(status_code=400, detail="Pedido no disponible para pago")
 
     try:
-        # 2. Crear el PaymentIntent (Stripe usa céntimos)
-        total_centimos = int(pedido.total * 100)
-
         intent = stripe.PaymentIntent.create(
-            amount=total_centimos,
+            amount=int(pedido.total * 100),
             currency="eur",
             automatic_payment_methods={"enabled": True},
-            metadata={
-                "pedido_id": pedido.id,
-                "usuario_id": usuario_actual.id
-            }
+            metadata={"pedido_id": pedido.id}
         )
-
-        # 3. Guardar el ID de stripe en el pedido
         pedido.stripe_payment_id = intent.id
         db.commit()
-
         return {"clientSecret": intent.client_secret}
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error con Stripe: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/webhook")
@@ -73,26 +124,21 @@ async def stripe_webhook(
         db: Session = Depends(get_db)
 ):
     payload = await request.body()
-
     try:
-        event = stripe.Webhook.construct_event(
-            payload, stripe_signature, STRIPE_WEBHOOK_SECRET
-        )
-    except Exception:
-        raise HTTPException(status_code=400, detail="Error de validación de firma")
+        event = stripe.Webhook.construct_event(payload, stripe_signature, STRIPE_WEBHOOK_SECRET)
+    except:
+        raise HTTPException(status_code=400)
 
-    # Si el pago fue exitoso en Stripe
     if event['type'] == 'payment_intent.succeeded':
         payment_intent = event['data']['object']
         pedido_id = payment_intent['metadata'].get('pedido_id')
 
-        if pedido_id:
-            pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
-            if pedido and pedido.estado != models.EstadoPedido.pagado:
-                pedido.estado = models.EstadoPedido.pagado
-                pedido.fecha_pago = datetime.utcnow()
-                db.commit()
-                print(f"✅ Pedido {pedido_id} pagado con éxito (Stripe).")
+        pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
+        if pedido and pedido.estado != models.EstadoPedido.pagado:
+            pedido.estado = models.EstadoPedido.pagado
+            pedido.fecha_pago = datetime.utcnow()
+            generar_factura_pdf(pedido)
+            db.commit()
 
     return {"status": "success"}
 
@@ -105,7 +151,6 @@ async def verificar_pago_paypal(
         db: Session = Depends(get_db),
         usuario_actual: models.Usuario = Depends(get_usuario_actual)
 ):
-    # Buscar pedido
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == datos.pedido_id,
         models.Pedido.usuario_id == usuario_actual.id
@@ -114,17 +159,40 @@ async def verificar_pago_paypal(
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
 
-    if pedido.estado == models.EstadoPedido.pagado:
-        return {"status": "success", "message": "El pedido ya figuraba como pagado"}
-
-    try:
-        # Actualizar información de pago
+    if pedido.estado != models.EstadoPedido.pagado:
         pedido.estado = models.EstadoPedido.pagado
         pedido.paypal_order_id = datos.order_id
         pedido.fecha_pago = datetime.utcnow()
-
+        generar_factura_pdf(pedido)
         db.commit()
-        return {"status": "success", "message": "Pago de PayPal registrado correctamente"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Error interno al registrar el pago")
+
+    return {"status": "success"}
+
+
+# --- ENDPOINT DESCARGA ---
+
+@router.get("/descargar-factura/{pedido_id}")
+async def descargar_factura(
+        pedido_id: int,
+        db: Session = Depends(get_db),
+        usuario_actual: models.Usuario = Depends(get_usuario_actual)
+):
+    pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
+
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+
+    if pedido.usuario_id != usuario_actual.id:
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    path = FACTURAS_DIR / f"factura_{pedido.id}.pdf"
+
+    # Forzamos regeneración si no existe o hubo error previo
+    if not path.exists():
+        generar_factura_pdf(pedido)
+
+    return FileResponse(
+        path=path,
+        filename=f"Factura_Midnight_{pedido_id}.pdf",
+        media_type='application/pdf'
+    )
