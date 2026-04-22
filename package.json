@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@stripe/stripe-js": "^8.11.0",
+    "vue-stripe": "^2.4.0"
+  }
+}
