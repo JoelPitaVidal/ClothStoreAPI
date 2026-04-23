@@ -1,52 +1,89 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from datetime import datetime
 from database.database import get_db
-from database.db_models import Pedido, PedidoItem, Carrito, Producto, EstadoPedido
-from models import PedidoRespuesta, ActualizarEstadoPedido
-from auth.security import get_usuario_actual, get_admin_actual
+from database.db_models import Pedido, PedidoItem, Carrito, Producto, EstadoPedido, CarritoItem  # ← todo junto
+from models import PedidoRespuesta
+from auth.security import get_usuario_actual
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 
 @router.post("/", response_model=PedidoRespuesta, status_code=201)
 def crear_pedido(db: Session = Depends(get_db), usuario=Depends(get_usuario_actual)):
-    # 1. Obtener el carrito
-    carrito = db.query(Carrito).filter(Carrito.usuario_id == usuario.id).first()
+    # 1. Obtener carrito con sus items y productos
+    carrito = db.query(Carrito).options(
+        joinedload(Carrito.items).joinedload(CarritoItem.producto)  # ✅ CarritoItem, no PedidoItem
+    ).filter(Carrito.usuario_id == usuario.id).first()
 
-    # 2. Si el carrito está vacío, verificamos si ya hay un pedido pendiente hoy
+    # 2. Recuperación si el carrito está vacío (Manejo de F5/Recargas)
     if not carrito or not carrito.items:
-        pedido_existente = db.query(Pedido).filter(
+        pedido_existente = db.query(Pedido).options(
+            joinedload(Pedido.items).joinedload(PedidoItem.producto)
+        ).filter(
             Pedido.usuario_id == usuario.id,
             Pedido.estado == EstadoPedido.pendiente
         ).order_by(Pedido.id.desc()).first()
 
         if pedido_existente:
-            return pedido_existente  # Devolvemos el que ya existe para no fallar
+            return pedido_existente
 
-        raise HTTPException(status_code=400, detail="El carrito está vacío y no hay pedidos pendientes")
+        raise HTTPException(status_code=400, detail="El carrito está vacío y no hay pedidos pendientes.")
 
-    # 3. Verificar stock
+    ahora = datetime.utcnow()
+
+    # 3. Validaciones de Negocio (Stock y Drops)
     for item in carrito.items:
-        if item.producto.stock < item.cantidad:
-            raise HTTPException(status_code=400, detail=f"No hay stock de {item.producto.nombre}")
+        producto = item.producto
+        if not producto:
+            continue
+
+        if producto.stock < item.cantidad:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Stock insuficiente: {producto.nombre}. Disponible: {producto.stock}"
+            )
+
+        if getattr(producto, 'es_exclusivo', False):
+            if producto.fecha_fin_exclusivo and ahora > producto.fecha_fin_exclusivo:
+                raise HTTPException(status_code=400, detail=f"El drop {producto.nombre} ha terminado.")
 
     try:
-        total = sum(item.producto.precio * item.cantidad for item in carrito.items)
-        pedido = Pedido(usuario_id=usuario.id, total=total, estado=EstadoPedido.pendiente)
-        db.add(pedido)
+        total_pedido = sum(item.producto.precio * item.cantidad for item in carrito.items)
+
+        # 4. Crear el Pedido — campo es 'fecha', NO 'fecha_pedido' ✅
+        nuevo_pedido = Pedido(
+            usuario_id=usuario.id,
+            total=total_pedido,
+            estado=EstadoPedido.pendiente,
+            fecha=ahora  # ✅ corregido
+        )
+        db.add(nuevo_pedido)
         db.flush()
 
+        # 5. Mover items del Carrito al Pedido y actualizar Stock
         for item in carrito.items:
-            db.add(PedidoItem(pedido_id=pedido.id, producto_id=item.producto_id,
-                              cantidad=item.cantidad, precio=item.producto.precio))
+            pedido_item = PedidoItem(
+                pedido_id=nuevo_pedido.id,
+                producto_id=item.producto_id,
+                cantidad=item.cantidad,
+                precio=item.producto.precio
+            )
+            db.add(pedido_item)
             item.producto.stock -= item.cantidad
-            db.delete(item)  # Vaciamos el carrito
+            db.delete(item)
 
         db.commit()
-        db.refresh(pedido)
-        return pedido
+
+        # 6. Retorno con todos los joins necesarios
+        pedido_final = db.query(Pedido).options(
+            joinedload(Pedido.items).joinedload(PedidoItem.producto)
+        ).filter(Pedido.id == nuevo_pedido.id).first()
+
+        return pedido_final
+
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error interno")
-
-# ... (Resto de rutas get_pedidos, obtener_pedido, etc. se mantienen igual)
+        print(f"--- ERROR CRÍTICO EN POST /PEDIDOS/ ---")
+        print(f"Tipo: {type(e).__name__} | Mensaje: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno al procesar el pedido.")
