@@ -1,6 +1,6 @@
 from sqlalchemy.orm import relationship
 from .database import Base
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, DateTime, Enum, Text
 from datetime import datetime
 import enum
 
@@ -110,3 +110,35 @@ class PedidoItem(Base):
 
     pedido = relationship("Pedido", back_populates="items")
     producto = relationship("Producto")
+
+
+# ─────────────────────────────────────────
+# NEWSLETTER
+# ─────────────────────────────────────────
+class Suscriptor(Base):
+    __tablename__ = "suscriptores"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    fecha_suscripcion = Column(DateTime, default=datetime.utcnow)
+    activo = Column(Boolean, default=True)
+
+
+class NewsletterPost(Base):
+    __tablename__ = "newsletter_posts"
+    id = Column(Integer, primary_key=True, index=True)
+    titulo = Column(String, nullable=False)
+    contenido = Column(String, nullable=False)
+    es_drop_exclusivo = Column(Boolean, default=False)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=True)
+    fecha_publicacion = Column(DateTime, default=datetime.utcnow)
+
+    producto = relationship("Producto")
+
+class Noticia(Base): # <--- ESTA ES LA CLASE QUE TE FALTA
+    __tablename__ = "noticias"
+    id = Column(Integer, primary_key=True, index=True)
+    titulo = Column(String, nullable=False)
+    contenido = Column(Text, nullable=False)
+    imagen_url = Column(String, nullable=True)
+    es_drop_exclusivo = Column(Boolean, default=False)
+    fecha_publicacion = Column(DateTime, default=datetime.utcnow)

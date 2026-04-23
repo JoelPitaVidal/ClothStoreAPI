@@ -12,7 +12,7 @@ import models
 # O si está en la raíz: import models
 
 # 3. Importación de los routers
-from routers import productos, categorias, auth, carrito, pedidos, admin, pagos
+from routers import productos, categorias, auth, carrito, pedidos, admin, pagos, newsletter
 
 
 load_dotenv()
@@ -39,6 +39,7 @@ app.include_router(categorias.router)
 app.include_router(carrito.router)
 app.include_router(pedidos.router)
 app.include_router(pagos.router)
+app.include_router(newsletter.router)
 
 @app.get("/")
 def raiz():

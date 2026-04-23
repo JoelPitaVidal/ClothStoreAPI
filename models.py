@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
-
+from typing import Optional
 
 # ─────────────────────────────────────────
 # CATEGORÍAS
@@ -35,6 +36,20 @@ class ProductoBase(BaseModel):
     es_exclusivo: bool = False
     fecha_fin_exclusivo: Optional[datetime] = None
 
+class SuscripcionRequest(BaseModel):
+    email: EmailStr
+
+# En models.py
+class NoticiaResponse(BaseModel):
+    id: Optional[int] = None # <--- Importante que sea opcional
+    titulo: str
+    contenido: str
+    imagen_url: Optional[str] = None
+    es_drop_exclusivo: bool = False
+    fecha_publicacion: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 class ProductoCrear(ProductoBase):
     pass
